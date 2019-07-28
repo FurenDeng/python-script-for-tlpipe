@@ -1,0 +1,126 @@
+import numpy as np
+import aipy
+import ephem
+import calibrators as cal
+import h5py as h5
+import datetime
+import scipy.constants as const
+from scipy.interpolate import interp1d
+from scipy.interpolate import InterpolatedUnivariateSpline
+from extrap1d import extrap1d
+import matplotlib.pyplot as plt
+from scipy.stats import linregress
+
+datafile = 'obs_data.hdf5'
+gainfile = './testdir/ns_cal/gain.hdf5'
+srcname = 'cas'
+src = cal.get_src(srcname)
+obs = ephem.Observer()
+
+with h5.File(datafile, 'r') as filein:
+    print('Load data file!')
+    obs.lon = ephem.degrees('%.10f'%filein.attrs['sitelon'])
+    obs.lat = ephem.degrees('%.10f'%filein.attrs['sitelat'])
+    src.compute(obs)
+    sec1970 = filein.attrs['sec1970']
+    inttime = filein.attrs['inttime']
+    time_len = filein['vis'].shape[0]
+    time_arr = np.float128(np.arange(time_len)*inttime) + sec1970
+    utc_time = [datetime.datetime.utcfromtimestamp(time) for time in time_arr]
+    eph_time = [ephem.date(time) for time in utc_time]
+    vis = filein['vis'][:,310:510:60,:]
+    pos = filein['feedpos'][:]
+
+vis_raw = vis.copy()
+
+n0 = []
+for time in eph_time:
+    obs.date = time
+    src.compute(obs)
+    n0.append(src.get_crds('top'))
+n0 = np.array(n0) # (time, 3)
+
+with h5.File(gainfile, 'r') as filein:
+    print('Load gain file!')
+    gain = filein['uni_gain'][:]
+    bls = filein['bl_order'][:]
+    freq = filein['freq'][:]
+    time_inds = filein['ns_cal_time_inds'][:]
+
+print('Start interpolation!')
+phase = np.angle(gain)
+phase_itp = interp1d(time_inds, phase, axis = 0, kind = 'cubic')
+phase_exp = extrap1d(phase_itp)
+newphase = phase_exp(np.arange(time_len)) # (time, freq, bl)
+
+amp = np.abs(gain)
+
+amp_itp = interp1d(time_inds, amp, axis = 0, kind = 'cubic')
+amp_exp = extrap1d(amp_itp)
+newamp = amp_exp(np.arange(time_len)) # (time, freq, bl)
+
+# for i in range(4):
+#     plt.plot(time_inds, amp[:,i,np.arange(0,512,100)],'o')
+#     plt.plot(newamp[:,i,np.arange(0,512,100)])
+#     plt.show()
+
+exfactor = []
+
+print('Calculate Gij!')
+rij = []
+for ii, (bli, blj) in enumerate(bls):
+    fi = int(np.ceil(bli/2.))
+    fj = int(np.ceil(blj/2.))
+    rij += [tuple(pos[fi-1]-pos[fj-1])]
+    uij = (pos[fi-1] - pos[fj-1])[:,np.newaxis] * freq[np.newaxis,:] * 1.e6 / const.c # (3, freq)
+    ef = np.exp(np.dot(n0, uij)*2.J*np.pi) # (time, freq)
+    exfactor += [ef]
+    
+    cnan = np.nan + 1.J*np.nan
+    if (bli + blj)%2 != 0 or bli == blj:
+        vis[:,:,ii] = cnan
+
+print('Apply gain!')
+
+axes = np.arange(1,vis.ndim).tolist()
+axes.append(0)
+exfactor = np.transpose(exfactor, axes)
+print(exfactor.shape)
+print(vis.shape)
+print(newphase.shape)
+
+
+num_bins = 1001
+vis_raw /= exfactor
+vis = vis/exfactor/np.exp(1.J*newphase)/newamp
+
+vis_raw = vis_raw[~np.isnan(vis)]
+vis = vis[~np.isnan(vis)]
+
+
+hist,bins = np.histogram(np.angle(vis.flatten()), bins = np.linspace(-np.pi,np.pi,num_bins,endpoint = True))
+bins = (bins[:-1] + bins[1:])/2.
+plt.plot(bins, hist, 'o', label = 'vis')
+
+hist,bins = np.histogram(np.angle(vis_raw.flatten()), bins = np.linspace(-np.pi,np.pi,num_bins,endpoint = True))
+bins = (bins[:-1] + bins[1:])/2.
+plt.plot(bins, hist, 'o', label = 'raw_vis')
+plt.legend()
+
+plt.yscale('log')
+plt.xlabel('phase/radian')
+plt.ylabel('Count')
+plt.show()
+
+
+
+
+
+
+
+
+
+
+
+
+
