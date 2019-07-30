@@ -3,6 +3,9 @@ import h5py as h5
 import datetime
 import scipy.constants as const
 from scipy.interpolate import interp1d
+'''
+input an interpolator object, return a function that can linear extrapolate.
+'''
 def extrap1d(interpolator):
     xs = interpolator.x
     ys = np.array(interpolator.y)

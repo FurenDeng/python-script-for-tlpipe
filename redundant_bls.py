@@ -19,9 +19,17 @@ can seen from the result, that after calibration, points of redundant baseline g
 '''
 datafile = 'obs_data.hdf5' # the observed vis
 gainfile = './testdir/ns_cal/gain.hdf5' # the ns_cal_gain file, which also contains the united gain
+srcfile = 'testdir/src_vis/cas_vis.hdf5'
 srcname = 'cas' # the abbreviation of the transit source name, the whole list see the calibrators.py
 src = cal.get_src(srcname)
 obs = ephem.Observer()
+
+with h5.File(gainfile, 'r') as filein:
+    print('Load gain file!')
+    gain = filein['uni_gain'][:]
+    bls = filein['bl_order'][:]
+    freq = filein['freq'][:]
+    time_inds = filein['ns_cal_time_inds'][:]
 
 with h5.File(datafile, 'r') as filein:
     print('Load data file!')
@@ -34,8 +42,31 @@ with h5.File(datafile, 'r') as filein:
     time_arr = np.float128(np.arange(time_len)*inttime) + sec1970
     utc_time = [datetime.datetime.utcfromtimestamp(time) for time in time_arr]
     eph_time = [ephem.date(time) for time in utc_time]
-    vis = filein['vis'][:,310:510:60,:]
+    freqstart = filein.attrs['freqstart']
+    freqstep = filein.attrs['freqstep']
+    freq_arr = np.arange(freqstart, freqstart + filein['vis'].shape[1]*freqstep, freqstep, dtype = np.float32)
+#    freq_index = np.array([freqi in freq for freqi in freq_arr])
+#    vis = filein['vis'][:,freq_index,:]
     pos = filein['feedpos'][:]
+    vis_shape = filein['vis'].shape
+    print('frequency index range: 0 to %d'%freq.shape[0])
+    freq_point = raw_input('Input frequency point, example(by default): %d\n'%(freq.shape[0]/2))
+
+    print('time index range: 0 to %d'%vis_shape[0])
+    time_point = raw_input('Input time point, example(by default): %d\n'%(vis_shape[0]/2))
+    if len(freq_point) == 0:
+        freq_point = freq.shape[0]/2
+    else:
+        freq_point = int(float(freq_point))
+    if len(time_point) == 0:
+        time_point = vis_shape[0]/2
+    else:
+        time_point = int(float(time_point))
+    freq_index = np.where(freq_arr == freq[freq_point])[0]
+    vis = filein['vis'][:,freq_index,:]
+#    vis = vis[:,np.newaxis]
+    gain = gain[:,freq_point,:]
+#    gain = gain[:,np.newaxis]
 
 vis_raw = vis.copy()
 
@@ -45,13 +76,6 @@ for time in eph_time:
     src.compute(obs)
     n0.append(src.get_crds('top'))
 n0 = np.array(n0) # (time, 3)
-
-with h5.File(gainfile, 'r') as filein:
-    print('Load gain file!')
-    gain = filein['uni_gain'][:]
-    bls = filein['bl_order'][:]
-    freq = filein['freq'][:]
-    time_inds = filein['ns_cal_time_inds'][:]
 
 phase = np.angle(gain)
 amp = np.abs(gain)
@@ -75,24 +99,22 @@ print('Calculate Gij!')
 rij = []
 print('Apply gain!')
 
-axes = np.arange(1,vis.ndim).tolist()
-axes.append(0)
 print(vis.shape)
 print(newphase.shape)
 
-with h5.File('testdir/src_vis/cas_vis.hdf5', 'r') as filein:
+with h5.File(srcfile, 'r') as filein:
     src_vis = filein['src_vis'][:]
-    src_rsp = np.zeros([src_vis.shape[0], src_vis.shape[1], vis.shape[-1]], dtype = np.complex64)
+    src_rsp = np.zeros([src_vis.shape[0], vis.shape[-1]], dtype = np.complex64)
     for ii, (bli, blj) in enumerate(bls):
         fi = int(np.ceil(bli/2.))
         fj = int(np.ceil(blj/2.))
         rij += [tuple(pos[fi-1]-pos[fj-1])]
         if (bli + blj)%2 == 0:
-            src_rsp[:,:,ii] = src_vis[:, :, bli%2-1, int(np.ceil(bli/2.)) - 1, int(np.ceil(blj/2.)) - 1]
+            src_rsp[:,ii] = src_vis[:, freq_point, bli%2-1, int(np.ceil(bli/2.)) - 1, int(np.ceil(blj/2.)) - 1]
         else:
-            src_rsp[:,:,ii] = np.nan + 1.J*np.nan
-            vis[:,:,ii] = np.nan + 1.J*np.nan
-            vis_raw[:,:,ii] = np.nan + 1.J*np.nan
+            src_rsp[:,ii] = np.nan + 1.J*np.nan
+            vis[:,ii] = np.nan + 1.J*np.nan
+            vis_raw[:,ii] = np.nan + 1.J*np.nan
 
 
 vis = vis/np.exp(1.J*newphase)/newamp
@@ -100,48 +122,37 @@ vis = vis/np.exp(1.J*newphase)/newamp
 # printout = False
 redun_count = 0
 double_count = 0
-print('frequency index range: 0 to %d'%vis.shape[1])
-freq_point = raw_input('Input frequency point: ')
-
-print('time index range: 0 to %d'%vis.shape[0])
-time_point = raw_input('Input time point: ')
-if len(freq_point) == 0:
-    freq_point = 1
-else:
-    freq_point = int(float(freq_point))
-if len(time_point) == 0:
-    time_point = 700
-else:
-    time_point = int(float(time_point))
 
 cmls = color_marker_line(l = False)
+cml_rec = []
 for cml, r in zip(cmls, set(rij)):
     redun_count += 1
+    cml_rec += [cml]
     if r==(0,0,0):
         continue
     arrij = np.array(rij)
     index = np.logical_and(np.logical_and(arrij[:,0] == r[0], arrij[:,1] == r[1]), arrij[:,2] == r[2])
-    mask = np.isnan(vis[time_point,freq_point,index].flatten())
+    mask = np.isnan(vis[time_point,index].flatten())
 
     plt.figure(1)
-    data = vis[time_point,freq_point,index].flatten()
+    data = vis[time_point,index].flatten()
     data = data[~mask]
-#    if len(data) < 2:
-#        continue
+    if len(data) < 2:
+        continue
     double_count += 1
 
     plt.plot(data.real, data.imag, cml)
     plt.title('after calibration')
 
     plt.figure(2)
-    data = vis_raw[time_point,freq_point,index].flatten()
+    data = vis_raw[time_point,index].flatten()
     data = data[~mask]
 
     plt.plot(data.real, data.imag, cml)
     plt.title('before calibration')
 
     plt.figure(3)
-    data = src_rsp[int(src_rsp.shape[0]/2.),1,index].flatten()
+    data = src_rsp[int(src_rsp.shape[0]/2.),index].flatten()
     data = data[~mask]
 
     plt.plot(data.real, data.imag, cml)
@@ -149,7 +160,6 @@ for cml, r in zip(cmls, set(rij)):
 
 #    if double_count%6 == 0:
 #        plt.show()
-
 plt.show()
 print(redun_count)
 

@@ -1,11 +1,18 @@
 import matplotlib.pyplot as plt
 import numpy as np
 import h5py as h5
+import os
+'''
+used to compare sky_vis, src_vis, outlier_vis separated by SPCA
+'''
+output_dir = 'testdir'
+data_file = 'src_vis/cas_vis.hdf5'
+data_file = os.path.join(output_dir, data_file)
+print(data_file)
 
-data = h5.File('cas_vis.hdf5','r')
+data = h5.File(data_file,'r')
 freq = data.attrs['freq']
 feeds = data.attrs['feed']
-freq_start = data
 
 print('frequency index range: %d to %d'%(0, freq.shape[0]))
 print('frequency range: %.4f to %.4f'%(freq[0], freq[-1]))

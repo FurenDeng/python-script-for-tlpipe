@@ -1,0 +1,41 @@
+detection of newfiles and process sequence:
+    1. remove the old files(the files that are exist both in the dir and in the datafile).
+
+    2. detect whether there is newfiles(files with the name format data_prefix*data_suffix that are not in datafile. there is three files in datafile before running, which is param_data_file, os.path.basename(abs_gain_file), os.path.basename(preserve_data_file)). 
+
+    note: the input_file_list contains the files that has been processed or should not be processed(the old files that have not be processed to avoid file accumulation). datafile is a super set of input_file_list, contains three more files.
+
+    3-1. if there are newfiles, and ns_prop_file exists(we do not need continuous noise points to determine the noise property), and not preserve_transit_file(even though the ps cal has not been done and we have not build up ns_prop_file(we can not do ps cal before that), we will not preserve data), only the latest file will be processed. all the newfiles will be added to datafile and input_file_list. and the unprocessed files will be removed in next cycle(do not remove it immidiately, to avoide files are not ready).
+
+    3-2. if there are newfiles and ns_prop_file does not exist or preserve_transit_data. only the first file will be processed and only add the first file to datafile and input_file_list.
+
+    4. check whether the to-be-processed file is ready by trying to open it. once it's ready, move it into param_data_file.
+
+    5. process the param_data_file.
+    6. once except ctrl+c, save the input_file_status to output_dir + '/output_status.txt'.
+
+Warnings:
+    1. LostPointBegin: one lost point was detected before the first noise point of this batch of data. the point lossing may occur at the last several points of the previous data, but was not detected, so the status of the previous data will also be labeled. and the reference_time in ns_prop_file will be moved one inttime earlier to compensate the lost point.
+    2. LostPointMiddle: one lost point was detected after the first noise point and before the last of this batch of data. the previous data will not be labeled. and the reference_time in ns_prop_file will be moved one inttime earlier to compensate the lost point.
+    3. NotEnoughPointToInterpolateWarning: because need at least 4 noise points to do cubic interpolation, raise if the number of noise points are less than 4. it is a warning when only do the ns cal(because the itp is only for ps cal). and there will be an Exception if go on and do ns cal.
+
+Exceptions:
+    1. NoiseNotEnough: do not have enough noise points(less than num_noise in ps_param_file and ns_param_file) to build up ns_prop_file, the noise points will be record and need to wait for more noise points.
+    2. NoNoisePoint: the data does not contain complete noise signal. raise only when ns_prop_file exist. probably the calculated noise points are out of data or no noise was detected.
+    3. AbnormalPoints: abnormal points are detected when doing ns cal. abnormal points mean abnormal rather than single point lost. only when more than 2/3 bls report abnormal or more than 2/3 bls report lost points but do not have universal lost position. the ns_prop_file should be updated if too many batches of data report abnormal.
+    4. DetectNoiseFailure: fail building up the ns_prop_file(fail detecting period, on_time and off_time). will remove the ns_arr_file(may contain too many abnormal points).
+    5. IncontinuousData/OverlapData: incontinuous/overlap(in time) data was detected when recording noise point into ns_arr_file(merge two files). because we have no knowlege about noise, so we can not deal with incontinuous/overlap data. the ns_arr_file will be removed.
+    6. NoTransit: no transit in data. only raise when there is ns_prop_file or have enough ns points to do ns cal.
+    7. bad_interpi(NotEnoughPointToInterpolateError): because need at least 4 noise points to do cubic interpolation, raise if the number of noise points are less than 4. raise only when there is transit in this batch of data. will lead to preserving data and removal of abs_gain_file(do ps cal using longer data, if bad_interp, the abs_gain_file will only contain nan).
+    8. UnexpectedError: unexpected error, just go on.
+
+sequence when processing data:
+    1. if the abnormal_count > abnormal_max(too many calibrations have been broken because of abnormal noise points), delete the ns_prop_file and ns_array_file to build up them again no matter what(but if preserve_transit_file, the whole data will be preserved and will not be affected).
+    2.1.1 if there is abs_gain_file(ps cal has been done and result has not been removed), do ns cal directly using ns_param_file. in this case, the preserve_transit_file has no effect.
+    2.1.2 if info!=0(an Exception has been raised), see the Exceptions in previous section. else succeed.
+    2.2.1 if abs_gain_file does not exist. if preserve_transit_data and preserve_data_file exists(there is preserved data before), merge the preserve_data_file with the param_data_file. and the continuity of two files will be checked. if not continuous, the merge will not be done and the preserve_data_file will be removed(may be the preserved files that has been forgotten to delete in the previous run).
+    2.2.2 do ps cal using ps_param_file. if there is no transit, nothing will be done. even do not need to preserve if there is surely no transit. if the tlpipe has get to this point the ns_prop_file was already made, so do not need to preserve and if bad_interp, there will only be warnings if no transit, and do not need to preserve untill transit comes.
+    2.2.3 if there is transit and bad_interp, preserve_transit_file will be automatically turn on. if preserve_data_file exists and not preserve_transit_file, it will be removed.
+    2.2.4 if the Exception was not NoTransit and preserve_transit_file(can also be from the bad_interp when there is a transit) the param_data_file will be moved to preserve_data_file.
+    2.2.5 other Exceptions see the Exceptions in previous section.
+    2.2.6 if no Exception, succeed, and copy param_data_file to preserve_data_file if preserve_transit_data. the preserve_transit_file will be set to be False once ps cal succeed.

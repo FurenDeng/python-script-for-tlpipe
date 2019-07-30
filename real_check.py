@@ -25,6 +25,13 @@ srcname = 'cas' # the abbreviation of the transit source name, the whole list se
 src = cal.get_src(srcname)
 obs = ephem.Observer()
 
+with h5.File(gainfile, 'r') as filein:
+    print('Load gain file!')
+    gain = filein['uni_gain'][:]
+    bls = filein['bl_order'][:]
+    freq = filein['freq'][:]
+    time_inds = filein['ns_cal_time_inds'][:]
+
 with h5.File(datafile, 'r') as filein:
     print('Load data file!')
     obs.lon = ephem.degrees('%.10f'%filein.attrs['sitelon'])
@@ -36,7 +43,11 @@ with h5.File(datafile, 'r') as filein:
     time_arr = np.float128(np.arange(time_len)*inttime) + sec1970
     utc_time = [datetime.datetime.utcfromtimestamp(time) for time in time_arr]
     eph_time = [ephem.date(time) for time in utc_time]
-    vis = filein['vis'][:,310:510:60,:]
+    freqstart = filein.attrs['freqstart']
+    freqstep = filein.attrs['freqstep']
+    freq_arr = np.arange(freqstart, freqstart + filein['vis'].shape[1]*freqstep, freqstep, dtype = np.float32)
+    freq_index = np.array([freqi in freq for freqi in freq_arr])
+    vis = filein['vis'][:,freq_index,:]
     pos = filein['feedpos'][:]
 
 vis_raw = vis.copy()
@@ -48,12 +59,6 @@ for time in eph_time:
     n0.append(src.get_crds('top'))
 n0 = np.array(n0) # (time, 3)
 
-with h5.File(gainfile, 'r') as filein:
-    print('Load gain file!')
-    gain = filein['uni_gain'][:]
-    bls = filein['bl_order'][:]
-    freq = filein['freq'][:]
-    time_inds = filein['ns_cal_time_inds'][:]
 
 phase = np.angle(gain)
 amp = np.abs(gain)
