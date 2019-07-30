@@ -10,20 +10,24 @@ import warnings
 import datetime
 import sys
 
-ps_param_file = 'ps_param_file.pipe'
-ns_param_file = 'ns_param_file.pipe'
-abs_gain_file = '/public/furendeng/testspace/testdir/gain/cas_gain.hdf5'
-param_data_file = 'obs_data.hdf5' # the file read by process, will not change with time
+work_dir = '/public/furendeng/testspace' # the dir in which this script is running, the params file should be in this dir
+result_dir = 'testdir' # the dir to save the result, should be the same as the pipe_outdir in the params file
+
+result_dir = os.path.join(work_dir, result_dir)
+ps_param_file = os.path.join(work_dir, 'ps_param_file.pipe')
+ns_param_file = os.path.join(work_dir, 'ns_param_file.pipe')
+abs_gain_file = os.path.join(result_dir, 'gain/cas_gain.hdf5')
+param_data_file = os.path.join(work_dir, 'obs_data.hdf5') # the file read by process, will not change with time
 data_prefix = '3src' # prefix of the datafile, use data_pre*suffix to find the datafile
 data_suffix = '.hdf5'# suffix of the datafile, use data_pre*suffix to find the datafile
 time_interval = 2 # in second
 mpi_n = 16
 time_limit = None # in second, stop when process time is larger than it
 preserve_transit_file =  True # preserve transit file if don't have enough points to do the noise calibration, which will lead to removal of ns_arr_file and merge of several data file
-ns_arr_file = '/public/furendeng/testspace/testdir/ns_cal/ns_arr_file.npz' # the saved noise array, will be used to do the noise cal if the noise points in one data is not enough
-ns_prop_file = '/public/furendeng/testspace/testdir/ns_cal/ns_prop_file.npz' # the property of noise, will be used to predict the noise points
-preserve_data_file = '/public/furendeng/testspace/testdir/preserve/preserve.hdf5' # save the preserved file to here
-output_dir = '/public/furendeng/testspace/testdir/output' # to save the stdout and stderr
+ns_arr_file = os.path.join(result_dir, 'ns_cal/ns_arr_file.npz') # the saved noise array, will be used to do the noise cal if the noise points in one data is not enough
+ns_prop_file = os.path.join(result_dir, 'ns_cal/ns_prop_file.npz') # the property of noise, will be used to predict the noise points
+preserve_data_file = os.path.join(result_dir, 'preserve/preserve.hdf5') # save the preserved file to here
+output_dir = os.path.join(result_dir, 'output') # to save the stdout and stderr
 datafile = [param_data_file, os.path.basename(abs_gain_file), os.path.basename(preserve_data_file)] # new file added to this list should be the observed visibility, and the list will change with time. New file should be mv into param_data_file
 abnormal_max = 3 # if abnormal_count >= abnormal_max, rebuild the noise property file
 abnormal_count = 0 # do not chnage, count the abnormal data
@@ -32,11 +36,12 @@ def Popen_save(cmd, outfile, errfile):
 
     process = sp.Popen(cmd + ' 1>%s 2>%s'%(outfile, errfile), shell = True, stdout = sp.PIPE, stderr = sp.PIPE)
     info = process.wait()
-    with open(outfile,'r') as fileout:
-        out = fileout.read()
+    print('Process finished!')
+#    with open(outfile,'r') as fileout:
+#        out = fileout.read()
     with open(errfile,'r') as fileerr:
         err = fileerr.read()
-    return info, out, err
+    return info, err
 def process(outfile, errfile):
     # please do not resent me for such a long global variable list
     global abnormal_count, abnormal_max, ns_prop_file, abs_gain_file, preserve_transit_file, preserve_data_file, ns_arr_file, param_data_file, t, t0
@@ -58,13 +63,7 @@ def process(outfile, errfile):
     # if do not have enough noise points, wait for next file to come
     if path.isfile(abs_gain_file):
         cmd = 'mpiexec -n %d '%mpi_n + 'tlpipe %s'%ns_param_file
-#        p = sp.Popen(cmd, shell = True, stderr = sp.PIPE, stdout = sp.PIPE)
-#        info = p.wait()
-#        out, err = p.communicate()
-#        with open(outfile, 'w') as fout:
-#            fout.write(out)
-#            fout.write(err)
-        info, out, err = Popen_save(cmd, outfile, errfile)
+        info, err = Popen_save(cmd, outfile, errfile)
         if 'LostPointBegin' in err:
             warnings.warn('One lost point before the data is detected. There might be undetected lost point at the previous data.')
             lost_point = 'LostPointBegin_'
@@ -104,6 +103,7 @@ def process(outfile, errfile):
                 print(err)
                 warnings.warn('Some unexpected err was raised during noise calibration! Skip this calibration!')
                 return rebuild_prop +  lost_point + 'UnexpectedError'
+        print('Noise calibration succeed!')
         return rebuild_prop +  lost_point + 'ns_succeed'
     # if absolute cal has not been done, do it first
     # if preserve_transit_file and do not have enough noise points, save input file to preserve_data_file then concatenate the next input file and it.
@@ -139,14 +139,8 @@ def process(outfile, errfile):
 
 
     cmd = 'mpiexec -n %d '%mpi_n + 'tlpipe %s'%ps_param_file
-    info, out, err = Popen_save(cmd, outfile, errfile)
-#    p = sp.Popen(cmd, shell = True, stderr = sp.PIPE, stdout = sp.PIPE)
-#    info = p.wait()
-#    out, err = p.communicate()
-#    with open(outfile, 'w') as fout:
-#        fout.write(out)
-#        fout.write(err)
-    bad_interp = 'NotEnoughPointToInterpolate' in err
+    info, err = Popen_save(cmd, outfile, errfile)
+    bad_interp = 'NotEnoughPointToInterpolateError' in err
     if 'LostPointBegin' in err:
         warnings.warn('One lost point before the data is detected. There might be undetected lost point at the previous data.')
         lost_point = 'LostPointBegin_'
@@ -155,7 +149,7 @@ def process(outfile, errfile):
         lost_point = 'LostPointMiddle_'
     return_txt = rebuild_prop + preserve_file + lost_point
     succeed = True # succeed in getting enough noise points if need to preserve data, always True if don't need to preserve
-    if info or bad_interp:
+    if info:
         if 'NoTransit' in err:
             warnings.warn('Data contains no transition of point source! Skip it!')
             return_txt += 'NoTransit'
@@ -201,7 +195,7 @@ def process(outfile, errfile):
                     else:
                         print('Remove old preserved data!')
                         sp.call('rm -rf %s'%preserve_data_file, shell = True)
-                return_txt += 'NotEnoughPointToInterpolate'
+                return_txt += 'NotEnoughPointToInterpolateError'
             else:
                 return_txt += 'UnexpectedError'
                 print(err)
@@ -219,6 +213,7 @@ def process(outfile, errfile):
             else:
                 warnings.warn('Do not have enough noise points, wait for enough noise points, so you may miss this transition!')
     else:
+        print('Pointsource calibration succeed!')
         return_txt += 'ps_succeed'
     if succeed and preserve_transit_file:
         preserve_transit_file = False
@@ -252,12 +247,11 @@ try:
         print('current %s*%s file: '%(data_prefix, data_suffix))
         print(', '.join(files))
         old_files = set(input_file_list).intersection(files)
-        if os.path.exists(ns_prop_file) and not preserve_transit_file:
-            if len(old_files) != 0:
-                print('Remove expired files!')
-            for old_file in old_files:
-                print('Remove %s'%old_file)
-                sp.call('rm -rf %s'%old_file, shell = True)
+        if len(old_files) != 0:
+            print('Remove expired files!')
+        for old_file in old_files:
+            print('Remove %s'%old_file)
+            sp.call('rm -rf %s'%old_file, shell = True)
         if set(files).issubset(set(datafile)):
             time.sleep(time_interval)
             continue

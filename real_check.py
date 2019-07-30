@@ -11,9 +11,17 @@ from extrap1d import extrap1d
 import matplotlib.pyplot as plt
 from scipy.stats import linregress
 
-datafile = 'obs_data.hdf5'
-gainfile = './testdir/ns_cal/gain.hdf5'
-srcname = 'cas'
+'''
+imag part of vis / exp(2J*pi*uij) / g should be fairly small, i.e. phase of vis / exp(2J*pi*uij) / g should be about 0
+
+this script plot the histogram of the phase of vis / exp(2J*pi*uij) / g and vis / exp(2J*pi*uij), labeled as vis and raw vis respectively and the result shows that after calibration, more points concentrate to 0 phase.
+
+sample of histogram are points in all the time, frequency and baseline. the XY and YX correlation was not calibrated, and the XX and YY correlations of the same feed are always real, so was removed from histogram.
+'''
+
+datafile = 'obs_data.hdf5' # the observed vis
+gainfile = './testdir/ns_cal/gain.hdf5' # the ns_cal_gain file, which also contains the united gain
+srcname = 'cas' # the abbreviation of the transit source name, the whole list see the calibrators.py
 src = cal.get_src(srcname)
 obs = ephem.Observer()
 
@@ -47,17 +55,23 @@ with h5.File(gainfile, 'r') as filein:
     freq = filein['freq'][:]
     time_inds = filein['ns_cal_time_inds'][:]
 
-print('Start interpolation!')
 phase = np.angle(gain)
-phase_itp = interp1d(time_inds, phase, axis = 0, kind = 'cubic')
-phase_exp = extrap1d(phase_itp)
-newphase = phase_exp(np.arange(time_len)) # (time, freq, bl)
-
 amp = np.abs(gain)
 
-amp_itp = interp1d(time_inds, amp, axis = 0, kind = 'cubic')
+itp_kind = raw_input('Input interpolation kind: ')
+print('Start interpolation!')
+if len(itp_kind) == 0:
+    phase_itp = interp1d(time_inds, phase, axis = 0)
+    amp_itp = interp1d(time_inds, amp, axis = 0)
+else:
+    phase_itp = interp1d(time_inds, phase, axis = 0, kind = itp_kind)
+    amp_itp = interp1d(time_inds, amp, axis = 0, kind = 'cubic')
+
+phase_exp = extrap1d(phase_itp)
+newphase = phase_exp(np.arange(time_len)) # (time, freq, bl)
 amp_exp = extrap1d(amp_itp)
 newamp = amp_exp(np.arange(time_len)) # (time, freq, bl)
+
 
 # for i in range(4):
 #     plt.plot(time_inds, amp[:,i,np.arange(0,512,100)],'o')
