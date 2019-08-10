@@ -26,7 +26,7 @@ else:
 
 
 print('feed index range: %d to %d'%(0, feeds.shape[0]))
-select_feedi = raw_input('input feed i range, example (by default):  0 %d 5\n'%(feeds.shape[0]))
+select_feedi = raw_input('input feed i range, example (by default):  1 %d 5\n'%(feeds.shape[0]))
 if len(select_feedi) == 0:
     select_feedi = np.arange(1,feeds.shape[0],5)
 else:
@@ -46,9 +46,19 @@ else:
 print('freqency: ', freq[select_freq])
 print('feeds: \n', [(sfi + 1, sfj + 1) for sfi in select_feedi for sfj in select_feedj])
 
-src = np.abs(data['src_vis'][:])
-sky = np.abs(data['sky_vis'][:])
-outlier = np.abs(data['outlier_vis'][:])
+part = raw_input('real, imag or abs?\n').strip()
+if part == 'real':
+    src = data['src_vis'][:].real
+    sky = data['sky_vis'][:].real
+    outlier = data['outlier_vis'][:].real
+elif part == 'imag':
+    src = data['src_vis'][:].imag
+    sky = data['sky_vis'][:].imag
+    outlier = data['outlier_vis'][:].imag
+else:
+    src = np.abs(data['src_vis'][:])
+    sky = np.abs(data['sky_vis'][:])
+    outlier = np.abs(data['outlier_vis'][:])
 for k in select_freq:
     for i in select_feedi:
         for j in select_feedj:
