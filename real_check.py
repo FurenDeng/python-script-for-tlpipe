@@ -160,7 +160,7 @@ vis_raw /= exfactor
 vis_ps /= exfactor
 vis = vis/exfactor/np.exp(1.J*newphase)/newamp
 
-time_range = raw_input('input time_range:\n')
+time_range = raw_input('input time_range(default the whole range of data):\n')
 if len(time_range) != 0:
     exec('time_range = [' + time_range + ']')
     time_range = np.arange(*time_range)
@@ -190,7 +190,9 @@ plt.legend()
 plt.yscale('log')
 plt.xlabel('phase/radian')
 plt.ylabel('Count')
-# plt.savefig('real_check')
+save_flag = raw_input('Save figure to check_real.png?(y/n)').strip()
+if save_flag == 'y':
+    plt.savefig('check_real')
 plt.show()
 
 

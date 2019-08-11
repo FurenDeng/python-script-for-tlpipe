@@ -15,13 +15,14 @@ def diff_angle(a1,a2):
 #file1 = raw_input('Input the reference gain file(should be a single file):\n').strip()
 #file2 = raw_input('Input the gain file for comparison(can be a single file or multiple files separated by ,):\n').strip()
 if len(sys.argv) < 3:
-    print('Format: python hist_gain.py reference_file comparison_files\nThe reference gain file should be a single file\nThe gain file for comparison can be a single file or multiple files separated by ,')
+    print('Format: python hist_gain.py reference_file comparison_file1, comparison_file2, comparison_file3...')
     sys.exit(0)
 else:
     file1 = sys.argv[1].strip()
-    file2 = sys.argv[2].strip()
+    file2 = []
+    for name in sys.argv[2:]:
+        file2 += [name.strip()]
 
-file2 = file2.strip().split(',')
 gain_kind = raw_input('Input gain kind for reference file(default uni_gain):\n')
 gain_kindc = raw_input('Input gain kind for comparison file(default the same as reference file):\n')
 cmp_kind = raw_input('Compare total, phase, amp, imag or real?(default, total):\n')
@@ -78,10 +79,13 @@ for filename in file2:
     hist, bins = np.histogram(ratio, bins = bins, density = True)
     bins = (bins[1:] + bins[:-1])/2.
     plt.plot(bins,hist,'o',label=filename)
-    plt.xlabel('Difference')
+    plt.xlabel('Difference of '+cmp_kind)
     plt.ylabel('Density')
 #    plt.hist(ratio)
 plt.legend()
+save_flag = raw_input('Save figure to ratio_hist.png?(y/n)').strip()
+if save_flag == 'y':
+    plt.savefig('ratio_hist')
 plt.show()
 
 

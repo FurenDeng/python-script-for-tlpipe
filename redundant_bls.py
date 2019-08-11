@@ -164,8 +164,9 @@ redun_count = 0
 double_count = 0
 
 cmls = color_marker_line(l = False)
-save_flag = raw_input('Save figure?(y/n)').strip()
+save_flag = raw_input('Save figure to time_point_vis/raw/ps?(y/n)').strip()
 equal_flag = raw_input('Equalize x scale and y scale?(y/n)').strip()
+normalize_flag = raw_input('Normalize radius?(y/n)').strip()
 
 for tp in time_point:
     xmin = np.inf
@@ -189,7 +190,10 @@ for tp in time_point:
             double_count += 1
 
         plt.figure(str(tp)+'_vis')
-        plt.plot(data.real, data.imag, cml)
+        if normalize_flag == 'y':
+            plt.plot(data.real/np.abs(data), data.imag/np.abs(data), cml)
+        else:
+            plt.plot(data.real, data.imag, cml)
         plt.title('after calibration')
         ylim = plt.ylim()
         xlim = plt.xlim()
@@ -207,7 +211,10 @@ for tp in time_point:
         mask = np.logical_or(np.isnan(data), data == 0)
         data = data[~mask]
 
-        plt.plot(data.real, data.imag, cml)
+        if normalize_flag == 'y':
+            plt.plot(data.real/np.abs(data), data.imag/np.abs(data), cml)
+        else:
+            plt.plot(data.real, data.imag, cml)
         plt.title('before calibration')
         ylim = plt.ylim()
         xlim = plt.xlim()
@@ -217,7 +224,10 @@ for tp in time_point:
         mask = np.logical_or(np.isnan(data), data == 0)
         data = data[~mask]
 
-        plt.plot(data.real, data.imag, cml)
+        if normalize_flag == 'y':
+            plt.plot(data.real/np.abs(data), data.imag/np.abs(data), cml)
+        else:
+            plt.plot(data.real, data.imag, cml)
         plt.title('only ps calibration')
         ylim = plt.ylim()
         xlim = plt.xlim()
@@ -233,11 +243,11 @@ for tp in time_point:
     
     if equal_flag:
         plt.figure(str(tp)+'_vis')
-        plt.xlim([min(xmin,ymin),max(ymax,xmax)])
-        plt.ylim([min(xmin,ymin),max(ymax,xmax)])
+        plt.xlim([1.1*min(xmin,ymin),1.1*max(ymax,xmax)])
+        plt.ylim([1.1*min(xmin,ymin),1.1*max(ymax,xmax)])
         plt.figure(str(tp)+'_ps')
-        plt.xlim([min(xmin,ymin),max(ymax,xmax)])
-        plt.ylim([min(xmin,ymin),max(ymax,xmax)])
+        plt.xlim([1.1*min(xmin,ymin),1.1*max(ymax,xmax)])
+        plt.ylim([1.1*min(xmin,ymin),1.1*max(ymax,xmax)])
         plt.figure(str(tp)+'_raw')
     if save_flag:
         plt.savefig(str(tp)+'_ps')
