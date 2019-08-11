@@ -35,7 +35,7 @@ def split(infile, outfiles, time_range = None, section_size = None):
     print('end time index: %d'%time_arrs[-1][-1])
     for outfile, time_arr in zip(outfiles, time_arrs):
         print('process %s, from time index %d to %d'%(outfile, time_arr[0], time_arr[-1]))
-        with h5.File(outfile,'w') as dataout:
+        with h5.File(outfile+'.temp','w') as dataout:
             for attr in datain.attrs.keys():
                 if attr == 'obstime':
                     obstime = datetime.strptime(datain.attrs['obstime'],timeformat)
@@ -54,6 +54,7 @@ def split(infile, outfiles, time_range = None, section_size = None):
                     dataout.create_dataset(key, data = datain[key][:])
                 for attr in datain[key].attrs.keys():
                     dataout[key].attrs[attr] = datain[key].attrs[attr]
+        sp.call('mv %s.temp %s'%(outfile, outfile), shell = True)
 #infile = '3srcNP_20180101214415_20180101224415.hdf5'
 infile = raw_input('input file:\n')
 outfile = raw_input('output files(input python style command, such as [\'3src_%i.hdf5\'%i for i in range(6)]):\n')

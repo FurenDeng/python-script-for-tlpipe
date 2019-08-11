@@ -30,6 +30,8 @@ if not os.path.exists(os.path.dirname(pm.preserve_data_file)):
     os.makedirs(os.path.dirname(pm.preserve_data_file))
 try:
     while(1):
+        sys.stdout.flush()
+        sys.stderr.flush()
         t =time.time() - pm.t0
         print('==================================')
         print('run time: %s'%datetime.timedelta(seconds = t))
@@ -112,6 +114,7 @@ try:
                 pm.input_file_status[-1] += '_MayAddedPointAtSomewhere'
             pm.input_file_status += [process_res]
             sp.call('cp -r %s/* ./save_result/%s_output/'%(pm.result_dir,newfile),shell=True)
+            sp.call('rm -rf ./save_result/%s_output/preserve'%(newfile),shell=True)
 except KeyboardInterrupt:
     with open(pm.output_dir + '/output_status.txt', 'w') as fileout:
         for file_name, file_status in zip(pm.input_file_list, pm.input_file_status):

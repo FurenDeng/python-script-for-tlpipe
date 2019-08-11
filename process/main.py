@@ -30,6 +30,8 @@ if not os.path.exists(os.path.dirname(pm.preserve_data_file)):
     os.makedirs(os.path.dirname(pm.preserve_data_file))
 try:
     while(1):
+        sys.stdout.flush()
+        sys.stderr.flush()
         t =time.time() - pm.t0
         print('==================================')
         print('run time: %s'%datetime.timedelta(seconds = t))
