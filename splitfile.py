@@ -3,6 +3,8 @@ import numpy as np
 import ephem
 from datetime import datetime, timedelta
 from uneven_split import uneven_arr_split 
+import sys
+import subprocess as sp
 timeformat = '%Y/%m/%d %H:%M:%S.%f'
 
 def split(infile, outfiles, time_range = None, section_size = None):
@@ -55,8 +57,12 @@ def split(infile, outfiles, time_range = None, section_size = None):
                 for attr in datain[key].attrs.keys():
                     dataout[key].attrs[attr] = datain[key].attrs[attr]
         sp.call('mv %s.temp %s'%(outfile, outfile), shell = True)
-#infile = '3srcNP_20180101214415_20180101224415.hdf5'
-infile = raw_input('input file:\n')
+#infile = raw_input('input file:\n')
+if len(sys.argv) < 2:
+    print('Format: python splitfile.py filename\nThe filename is the file to split')
+    sys.exit(0)
+else:
+    infile = sys.argv[1].strip()
 outfile = raw_input('output files(input python style command, such as [\'3src_%i.hdf5\'%i for i in range(6)]):\n')
 outfile = 'outfile = ' + outfile
 exec(outfile)

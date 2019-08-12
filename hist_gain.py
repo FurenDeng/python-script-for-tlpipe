@@ -73,8 +73,11 @@ for filename in file2:
     for i in range(1,6):
         max_bins = np.median(ratio)*i
         ratio_in = (ratio < max_bins).sum()/1./np.size(ratio)
-        print('Ratio of data in range [0, %.2f): %.2f'%(max_bins, ratio_in))
-    print('Ratio of data in plot range [0, %.2f): %.2f'%(max_bins, ratio_in))
+        if cmp_kind == 'phase':
+            print('Ratio of data in range [0, %.3f rad)([0, %.3f deg)): %.3f'%(max_bins, max_bins*180./np.pi, ratio_in))
+        else:
+            print('Ratio of data in range [0, %.3f): %.3f'%(max_bins, ratio_in))
+    print('Ratio of data in plot range [0, %.3f): %.3f'%(max_bins, ratio_in))
     bins = np.linspace(0,max_bins,81)
     hist, bins = np.histogram(ratio, bins = bins, density = True)
     bins = (bins[1:] + bins[:-1])/2.

@@ -28,9 +28,11 @@ with h5.File(datafile, 'r') as filein:
     bls = filein['blorder'][:]
 pf, feedselect = bl2pol_feed_inds(bls, feeds)
 ps2ns = np.zeros([1,psgain.shape[0],len(feedselect)], dtype = np.complex64)
+bls = bls[feedselect]
 
 for ii, (pi,fi,pj,fj) in enumerate(pf):
     ps2ns[0,:,ii] = psgain[:,pi,fi]*psgain[:,pj,fj].conj()
 
 with h5.File(savefile, 'w') as filein:
-    filein['psgain'] = ps2ns
+    filein['gain'] = ps2ns
+    filein['bl_order'] = bls
