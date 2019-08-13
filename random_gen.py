@@ -73,10 +73,11 @@ def random_gen(func, *args, **kwargs):
     kwargs: kwargs that will be passed to func and pdf_rvs
     '''
     return pdf_rvs(func, **kwargs)(np.random.rand(np.prod(args))).reshape(args)
-rvs = pdf_rvs(lambda x: np.ones_like(x), xlim = [0,1], truncate = 1.e-20)#, A = 1., mean = 0., sigma = 1.)
-#rvs = pdf_rvs(lambda x: x**-4)
-#plt.hist(rvs(np.random.rand(100000)))
-mat = random_gen(gaussian, 300, 400, 500, truncate = 1.e-10, precision = 1.e-4, A = 10, mean = 10, sigma = 2.)
-plt.hist(mat.flatten())
-print(mat.shape)
-plt.show()
+if __name__ == '__main__':
+    rvs = pdf_rvs(lambda x: np.ones_like(x), xlim = [0,1], truncate = 1.e-20)#, A = 1., mean = 0., sigma = 1.)
+#    rvs = pdf_rvs(lambda x: x**-4)
+#    plt.hist(rvs(np.random.rand(100000)))
+    mat = random_gen(gaussian, 300, 400, 500, truncate = 1.e-10, precision = 1.e-4, A = 10, mean = 10, sigma = 2.)
+    plt.hist(mat.flatten())
+    print(mat.shape)
+    plt.show()
