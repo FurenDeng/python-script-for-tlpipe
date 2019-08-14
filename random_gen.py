@@ -23,6 +23,8 @@ from scipy.interpolate import interp1d
 
 def gaussian(x, A, mean, sigma):
     return A*np.exp(-(x - mean)**2/2./sigma**2)
+def normal(x):
+    return gaussian(x,1./(2*np.pi)**0.5,0.,1.)
 def pdf_rvs(func, xlim = None, positive = False, truncate = 1.e-15, precision = 1.e-3, **kwargs):
     '''
     Calculate reverse function of cpf when pdf is given.
@@ -59,7 +61,7 @@ def pdf_rvs(func, xlim = None, positive = False, truncate = 1.e-15, precision = 
     yarr = func(xarr, **kwargs)
     cumyarr = cumtrapz(yarr,xarr)
     cumyarr = np.append(0, cumyarr)/cumyarr[-1]
-    cumyarr[-1] = 1.
+#    cumyarr[-1] = 1.
     rvs = interp1d(cumyarr, xarr)
     return rvs
 def random_gen(func, *args, **kwargs):
@@ -72,12 +74,20 @@ def random_gen(func, *args, **kwargs):
     args: a1, a2, a3 ..., int, define the shape of output array
     kwargs: kwargs that will be passed to func and pdf_rvs
     '''
-    return pdf_rvs(func, **kwargs)(np.random.rand(np.prod(args))).reshape(args)
+    return pdf_rvs(func, **kwargs)(np.random.rand(*args))
 if __name__ == '__main__':
+    from scipy.integrate import quad
+    print(quad(normal, -10, 10))
     rvs = pdf_rvs(lambda x: np.ones_like(x), xlim = [0,1], truncate = 1.e-20)#, A = 1., mean = 0., sigma = 1.)
-#    rvs = pdf_rvs(lambda x: x**-4)
-#    plt.hist(rvs(np.random.rand(100000)))
-    mat = random_gen(gaussian, 300, 400, 500, truncate = 1.e-10, precision = 1.e-4, A = 10, mean = 10, sigma = 2.)
+    x = np.random.rand(100000)
+    x[0:1000:2] = 1
+    x[3:2000:3] = 0
+    x = x.reshape(-1,400)
+    x = rvs(x)
+    print(x.shape)
+    plt.hist(x.flatten())
+    mat = random_gen(gaussian, 30, 40, 50, truncate = 1.e-10, precision = 1.e-4, A = 10, mean = 10, sigma = 2.)
+    plt.figure()
     plt.hist(mat.flatten())
     print(mat.shape)
     plt.show()
