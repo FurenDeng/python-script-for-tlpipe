@@ -164,9 +164,9 @@ redun_count = 0
 double_count = 0
 
 cmls = color_marker_line(l = False)
-save_flag = raw_input('Save figure to time_point_vis/raw/ps?(y/n)').strip()
-equal_flag = raw_input('Equalize x scale and y scale?(y/n)').strip()
-normalize_flag = raw_input('Normalize radius?(y/n)').strip()
+save_flag = raw_input('Save figure to time_point_vis/raw/ps?(y/n)').strip()=='y'
+equal_flag = raw_input('Equalize x scale and y scale?(y/n)').strip()=='y'
+normalize_flag = raw_input('Normalize radius?(y/n)').strip()=='y'
 
 for tp in time_point:
     xmin = np.inf
@@ -190,7 +190,7 @@ for tp in time_point:
             double_count += 1
 
         plt.figure(str(tp)+'_vis')
-        if normalize_flag == 'y':
+        if normalize_flag:
             plt.plot(data.real/np.abs(data), data.imag/np.abs(data), cml)
         else:
             plt.plot(data.real, data.imag, cml)
@@ -211,7 +211,7 @@ for tp in time_point:
         mask = np.logical_or(np.isnan(data), data == 0)
         data = data[~mask]
 
-        if normalize_flag == 'y':
+        if normalize_flag:
             plt.plot(data.real/np.abs(data), data.imag/np.abs(data), cml)
         else:
             plt.plot(data.real, data.imag, cml)
@@ -224,7 +224,7 @@ for tp in time_point:
         mask = np.logical_or(np.isnan(data), data == 0)
         data = data[~mask]
 
-        if normalize_flag == 'y':
+        if normalize_flag:
             plt.plot(data.real/np.abs(data), data.imag/np.abs(data), cml)
         else:
             plt.plot(data.real, data.imag, cml)
@@ -248,11 +248,24 @@ for tp in time_point:
         plt.figure(str(tp)+'_ps')
         plt.xlim([1.1*min(xmin,ymin),1.1*max(ymax,xmax)])
         plt.ylim([1.1*min(xmin,ymin),1.1*max(ymax,xmax)])
-        plt.figure(str(tp)+'_raw')
+    plt.figure(str(tp)+'_raw')
+    plt.xlim([plt.xlim()[0]*1.1,plt.xlim()[1]*1.1])
+    plt.ylim([plt.ylim()[0]*1.1,plt.ylim()[1]*1.1])
     if save_flag:
-        plt.savefig(str(tp)+'_ps')
-        plt.savefig(str(tp)+'_raw')
-        plt.savefig(str(tp)+'_vis')
+        if normalize_flag:
+            plt.figure(str(tp)+'_ps')
+            plt.savefig(str(tp)+'_ps_normalize')
+            plt.figure(str(tp)+'_raw')
+            plt.savefig(str(tp)+'_raw_normalize')
+            plt.figure(str(tp)+'_vis')
+            plt.savefig(str(tp)+'_vis_normalize')
+        else:
+            plt.figure(str(tp)+'_ps')
+            plt.savefig(str(tp)+'_ps')
+            plt.figure(str(tp)+'_raw')
+            plt.savefig(str(tp)+'_raw')
+            plt.figure(str(tp)+'_vis')
+            plt.savefig(str(tp)+'_vis')
     plt.show()
 print('Redundant baselines count: %d'%redun_count)
 print('Redundant baseline that have more than one baseline: %d'%double_count)

@@ -18,11 +18,11 @@ class params:
     ns_param_file = os.path.join(work_dir, 'ns_param_file.pipe')
     abs_gain_file = os.path.join(result_dir, 'gain/cas_gain.hdf5')
     param_data_file = os.path.join(work_dir, 'obs_data.hdf5') # the file read by process, will not change with time
-    data_prefix = '3src' # prefix of the datafile, use data_pre*suffix to find the datafile
+    data_prefix = 'Cas' # prefix of the datafile, use data_pre*suffix to find the datafile
     data_suffix = '.hdf5'# suffix of the datafile, use data_pre*suffix to find the datafile
     time_interval = 2 # in second
     mpi_n = 16
-    time_limit = 2500 # in second, stop when process time is larger than it
+    time_limit = None # in second, stop when process time is larger than it
     preserve_transit_file =  True # preserve transit file if don't have enough points to do the noise calibration, which will lead to removal of ns_arr_file and merge of several data file
     ns_arr_file = os.path.join(result_dir, 'ns_cal/ns_arr_file.npz') # the saved noise array, will be used to do the noise cal if the noise points in one data is not enough
     ns_prop_file = os.path.join(result_dir, 'ns_cal/ns_prop_file.npz') # the property of noise, will be used to predict the noise points
